@@ -18,7 +18,7 @@ function Format-Error {
                 Get-Command ConvertTo-*ErrorView -ListImported -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord]
             ).Name -replace "ConvertTo-(.*)ErrorView",'$1' -like "*$($wordToComplete)*")
         })]
-        $View = $ErrorView,
+        $View = "Normal",
 
         [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [System.Management.Automation.ErrorRecord]$InputObject
