@@ -1,22 +1,50 @@
 param(
-    [ArgumentCompleter({ (Get-Command ConvertTo-Error* -ListImported).Name -replace "ConvertTo-Error(?:View)?(.*)(?:View)",'$1' })]
-    $ErrorView
+    $global:ErrorView = "Simple"
 )
 
 # We need to overwrite the ErrorView
 # So -PrependPath, instead of FormatsToProcess
 Update-FormatData -PrependPath $PSScriptRoot\ErrorView.ps1xml
 
+function Format-Error {
+    [CmdletBinding()]
+    [Alias("fe")]
+    [OutputType([System.Management.Automation.ErrorRecord])]
+    param(
+        [Parameter(Position=0, ValueFromPipelineByPropertyName)]
+        [ArgumentCompleter({
+            param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameter)
+            [System.Management.Automation.CompletionResult[]]((
+                Get-Command ConvertTo-*ErrorView -ListImported -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord]
+            ).Name -replace "ConvertTo-(.*)ErrorView",'$1' -like "*$($wordToComplete)*")
+        })]
+        $View = $ErrorView,
+
+        [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
+        [System.Management.Automation.ErrorRecord]$InputObject
+
+    )
+    begin {
+        $View, $global:ErrorView = $ErrorView, $View
+    }
+    process {
+        $InputObject
+    }
+    end {
+        $global:ErrorView = $View
+    }
+}
+
 function Write-NativeCommandError {
     [CmdletBinding()]
     param(
         [System.Management.Automation.ErrorRecord]
-        $CurrentError
+        $InputObject
     )
 
-    if ($CurrentError.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") { return }
+    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") { return }
 
-    $myinv = $CurrentError.InvocationInfo
+    $myinv = $InputObject.InvocationInfo
     if ($myinv -and $myinv.MyCommand) {
         switch -regex ( $myinv.MyCommand.CommandType ) {
             ([System.Management.Automation.CommandTypes]::ExternalScript) {
@@ -46,29 +74,38 @@ function Write-NativeCommandError {
         $myinv.InvocationName + " : "
     }
 }
-function ConvertTo-ErrorCategoryView {
+
+function ConvertTo-CategoryErrorView {
     [CmdletBinding()]
     param(
         [System.Management.Automation.ErrorRecord]
-        $CurrentError
+        $InputObject
     )
 
-    $CurrentError.CategoryInfo.GetMessage()
+    $InputObject.CategoryInfo.GetMessage()
 }
 
-function ConvertTo-ErrorSimpleView {
+function ConvertTo-SimpleErrorView {
     [CmdletBinding()]
     param(
         [System.Management.Automation.ErrorRecord]
-        $CurrentError
+        $InputObject
     )
 
-    if ($CurrentError.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
-        $CurrentError.Exception.Message
+    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
+        $InputObject.Exception.Message
     } else {
-        $myinv = $CurrentError.InvocationInfo
-        if ($myinv -and ($myinv.MyCommand -or ($CurrentError.CategoryInfo.Category -ne 'ParserError'))) {
-            $posmsg = $myinv.PositionMessage
+        $myinv = $InputObject.InvocationInfo
+        if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError'))) {
+            # rip off lines that say "At line:1 char:1" (hopefully, in a language agnostic way)
+            $posmsg  = $myinv.PositionMessage -replace "^At line:1 .*[\r\n]+"
+            # rip off the underline and instead, put >>>markers<<< around the important bit
+            # we could, instead, set the background to a highlight color?
+            $pattern = $posmsg -split "[\r\n]+" -match "\+( +~+)\s*" -replace '(~+)', '($1)' -replace '( +)','($1)' -replace '~| ','.'
+            $posmsg  = $posmsg -replace '[\r\n]+\+ +~+'
+            if ($pattern) {
+                $posmsg  = $posmsg -replace "\+$pattern", '+ $1>>>$2<<<'
+            }
         } else {
             $posmsg = ""
         }
@@ -77,14 +114,14 @@ function ConvertTo-ErrorSimpleView {
             $posmsg = "`n" + $posmsg
         }
 
-        if ( & { Set-StrictMode -Version 1; $CurrentError.PSMessageDetails } ) {
-            $posmsg = " : " + $CurrentError.PSMessageDetails + $posmsg
+        if ( & { Set-StrictMode -Version 1; $InputObject.PSMessageDetails } ) {
+            $posmsg = " : " + $InputObject.PSMessageDetails + $posmsg
         }
 
         $indent = 4
         $width = $host.UI.RawUI.BufferSize.Width - $indent - 2
 
-        $originInfo = & { Set-StrictMode -Version 1; $CurrentError.OriginInfo }
+        $originInfo = & { Set-StrictMode -Version 1; $InputObject.OriginInfo }
         if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
             $indentString = "+ PSComputerName        : " + $originInfo.PSComputerName
             $posmsg += "`n"
@@ -95,25 +132,26 @@ function ConvertTo-ErrorSimpleView {
             }
         }
 
-        if (!$CurrentError.ErrorDetails -or !$CurrentError.ErrorDetails.Message) {
-            $CurrentError.Exception.Message + $posmsg + "`n "
+        if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
+            $InputObject.Exception.Message + $posmsg + "`n "
         } else {
-            $CurrentError.ErrorDetails.Message + $posmsg
+            $InputObject.ErrorDetails.Message + $posmsg
         }
     }
 }
-function ConvertTo-ErrorNormalView {
+
+function ConvertTo-NormalErrorView {
     [CmdletBinding()]
     param(
         [System.Management.Automation.ErrorRecord]
-        $CurrentError
+        $InputObject
     )
 
-    if ($CurrentError.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
-        $CurrentError.Exception.Message
+    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
+        $InputObject.Exception.Message
     } else {
-        $myinv = $CurrentError.InvocationInfo
-        if ($myinv -and ($myinv.MyCommand -or ($CurrentError.CategoryInfo.Category -ne 'ParserError'))) {
+        $myinv = $InputObject.InvocationInfo
+        if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError'))) {
             $posmsg = $myinv.PositionMessage
         } else {
             $posmsg = ""
@@ -123,18 +161,18 @@ function ConvertTo-ErrorNormalView {
             $posmsg = "`n" + $posmsg
         }
 
-        if ( &{ Set-StrictMode -Version 1; $CurrentError.PSMessageDetails } ) {
-            $posmsg = " : " +  $CurrentError.PSMessageDetails + $posmsg
+        if ( &{ Set-StrictMode -Version 1; $InputObject.PSMessageDetails } ) {
+            $posmsg = " : " +  $InputObject.PSMessageDetails + $posmsg
         }
 
         $indent = 4
         $width = $host.UI.RawUI.BufferSize.Width - $indent - 2
 
-        $errorCategoryMsg = &{ Set-StrictMode -Version 1; $CurrentError.ErrorCategory_Message }
+        $errorCategoryMsg = &{ Set-StrictMode -Version 1; $InputObject.ErrorCategory_Message }
         if ($null -ne $errorCategoryMsg) {
-            $indentString = "+ CategoryInfo            : " + $CurrentError.ErrorCategory_Message
+            $indentString = "+ CategoryInfo            : " + $InputObject.ErrorCategory_Message
         } else {
-            $indentString = "+ CategoryInfo            : " + $CurrentError.CategoryInfo
+            $indentString = "+ CategoryInfo            : " + $InputObject.CategoryInfo
         }
         $posmsg += "`n"
         foreach ($line in @($indentString -split "(.{$width})")) {
@@ -143,7 +181,7 @@ function ConvertTo-ErrorNormalView {
             }
         }
 
-        $indentString = "+ FullyQualifiedErrorId   : " + $CurrentError.FullyQualifiedErrorId
+        $indentString = "+ FullyQualifiedErrorId   : " + $InputObject.FullyQualifiedErrorId
         $posmsg += "`n"
         foreach ($line in @($indentString -split "(.{$width})")) {
             if ($line) {
@@ -151,7 +189,7 @@ function ConvertTo-ErrorNormalView {
             }
         }
 
-        $originInfo = &{ Set-StrictMode -Version 1; $CurrentError.OriginInfo }
+        $originInfo = &{ Set-StrictMode -Version 1; $InputObject.OriginInfo }
         if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
             $indentString = "+ PSComputerName          : " + $originInfo.PSComputerName
             $posmsg += "`n"
@@ -162,10 +200,10 @@ function ConvertTo-ErrorNormalView {
             }
         }
 
-        if (!$CurrentError.ErrorDetails -or !$CurrentError.ErrorDetails.Message) {
-            $CurrentError.Exception.Message + $posmsg + "`n "
+        if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
+            $InputObject.Exception.Message + $posmsg + "`n "
         } else {
-            $CurrentError.ErrorDetails.Message + $posmsg
+            $InputObject.ErrorDetails.Message + $posmsg
         }
     }
 }

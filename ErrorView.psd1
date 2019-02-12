@@ -10,11 +10,11 @@
 
     Copyright            = '(c) Joel Bennett. All rights reserved.'
 
-    FunctionsToExport    = 'Write-NativeCommandError', 'ConvertTo-ErrorCategoryView', 'ConvertTo-ErrorNormalView', 'ConvertTo-ErrorSimpleView'
+    FunctionsToExport    = 'Format-Error', 'Write-NativeCommandError', 'ConvertTo-CategoryErrorView', 'ConvertTo-NormalErrorView', 'ConvertTo-SimpleErrorView'
 
-    CmdletsToExport = @()
-    VariablesToExport = @()
-    AliasesToExport = @()
+    CmdletsToExport      = @()
+    VariablesToExport    = @()
+    AliasesToExport      = @("fe")
 
 PrivateData = @{
     PSData = @{
