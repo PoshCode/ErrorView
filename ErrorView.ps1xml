@@ -18,9 +18,8 @@
               </ExpressionBinding>
               <ExpressionBinding>
                 <ScriptBlock>
-                  "Hello World"
-                  if ($formatter = Get-Command "ConvertTo-Error$($ErrorView)" -ListImported) {
-                    &amp;$formatter $_
+                  if ($formatter = Get-Command "ConvertTo-Error*$($ErrorView)*" -ListImported) {
+                    &amp;@($formatter)[0] $_
                   } else {
                     ConvertTo-ErrorNormalView $_
                   }

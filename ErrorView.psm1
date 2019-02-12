@@ -1,3 +1,12 @@
+param(
+    [ArgumentCompleter({ (Get-Command ConvertTo-Error* -ListImported).Name -replace "ConvertTo-Error(?:View)?(.*)(?:View)",'$1' })]
+    $ErrorView
+)
+
+# We need to overwrite the ErrorView
+# So -PrependPath, instead of FormatsToProcess
+Update-FormatData -PrependPath $PSScriptRoot\ErrorView.ps1xml
+
 function Write-NativeCommandError {
     [CmdletBinding()]
     param(
@@ -37,7 +46,6 @@ function Write-NativeCommandError {
         $myinv.InvocationName + " : "
     }
 }
-
 function ConvertTo-ErrorCategoryView {
     [CmdletBinding()]
     param(
@@ -47,7 +55,6 @@ function ConvertTo-ErrorCategoryView {
 
     $CurrentError.CategoryInfo.GetMessage()
 }
-
 
 function ConvertTo-ErrorSimpleView {
     [CmdletBinding()]
@@ -95,7 +102,6 @@ function ConvertTo-ErrorSimpleView {
         }
     }
 }
-
 function ConvertTo-ErrorNormalView {
     [CmdletBinding()]
     param(

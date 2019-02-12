@@ -5,7 +5,6 @@
     CompanyName          = 'PoshCode'
 
     RootModule           = 'ErrorView.psm1'
-    FormatsToProcess     = 'ErrorView.ps1xml'
     ModuleVersion        = '0.0.1'
     CompatiblePSEditions = @("Core", "Desktop")
 
