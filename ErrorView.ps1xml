@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>ErrorInstance</Name>
+      <OutOfBand />
+      <ViewSelectedBy>
+        <TypeName>System.Management.Automation.ErrorRecord</TypeName>
+      </ViewSelectedBy>
+      <CustomControl>
+        <CustomEntries>
+          <CustomEntry>
+            <CustomItem>
+              <ExpressionBinding>
+                <ScriptBlock>
+                  Write-NativeCommandError $_
+                </ScriptBlock>
+              </ExpressionBinding>
+              <ExpressionBinding>
+                <ScriptBlock>
+                  "Hello World"
+                  if ($formatter = Get-Command "ConvertTo-Error$($ErrorView)" -ListImported) {
+                    &amp;$formatter $_
+                  } else {
+                    ConvertTo-ErrorNormalView $_
+                  }
+                </ScriptBlock>
+              </ExpressionBinding>
+            </CustomItem>
+          </CustomEntry>
+        </CustomEntries>
+      </CustomControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>
