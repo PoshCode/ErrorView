@@ -4,9 +4,8 @@
     Author               = 'Joel Bennett'
     CompanyName          = 'PoshCode'
 
-    RootModule           = 'ErrorView.psm1'
+    ModuleToProcess      = 'ErrorView.psm1'
     ModuleVersion        = '0.0.1'
-    CompatiblePSEditions = @("Core", "Desktop")
 
     Copyright            = '(c) Joel Bennett. All rights reserved.'
 
@@ -31,7 +30,7 @@ PrivateData = @{
         # IconUri = ''
 
         # ReleaseNotes of this module
-        # ReleaseNotes = ''
+        ReleaseNotes = 'This module exists for testing ideas for ErrorViews'
 
     } # End of PSData hashtable
 
