@@ -6,6 +6,69 @@ param(
 # So -PrependPath, instead of FormatsToProcess
 Update-FormatData -PrependPath $PSScriptRoot\ErrorView.ps1xml
 
+function Get-Error {
+    <#
+        .SYNOPSIS
+            Allows retrieving errors from the global:Error collection based on which command from history triggered them
+        .EXAMPLE
+            Get-Error
+
+            Returns all of the errors triggered by the most recent command with an error
+    #>
+    [Alias("ge")]
+    [OutputType([System.Management.Automation.ErrorRecord])]
+    [CmdletBinding(DefaultParameterSetName="Count")]
+    param(
+        # The number of recent commands to show errors for
+        [Parameter(Position = 0, ParameterSetName = "HistoryCount")]
+        [Alias("CommandCount")]
+        [int]$Count = 1,
+
+        [Parameter(Mandatory, ParameterSetName = "ErrorCount")]
+        [int]$ErrorCount,
+
+        # The history index of the commands you want to see errors for (defaults to the most recent $Count errors)
+        [Parameter(Position = 0, ParameterSetName = "HistoryId")]
+        [Alias("Id")]
+        [int[]]$HistoryId = $(($MyInvocation.HistoryId - 1)..($MyInvocation.HistoryId - [Math]::Min($Count, $MyInvocation.HistoryId)))
+    )
+    if ($global:Error.Count -eq 0) {
+        Write-Warning "The global `$Error collection is empty"
+    } elseif ($ErrorCount) {
+        $e = $global:Error[0..$ErrorCount]
+    } else {
+        $e = $global:Error.Where({ $_.InvocationInfo.HistoryId -in $HistoryId -or $_.ErrorRecord.InvocationInfo.HistoryId -in $HistoryId})
+
+        # if we didn't find any errors matching the HistoryId, what's the most recent command with an error?
+        if ($e.Count -eq 0) {
+
+            if($global:Error[0].InvocationInfo.HistoryId -gt 0) {
+                $FoundErrorIndex = $global:Error[0].InvocationInfo.HistoryId
+            } elseif ($global:Error[0].ErrorRecord.InvocationInfo.HistoryId -gt 0) {
+                $FoundErrorIndex = $global:Error[0].ErrorRecord.InvocationInfo.HistoryId
+            } else {
+                $FoundErrorIndex = -1
+            }
+
+            if ($FoundErrorIndex -lt $HistoryId[0]) {
+                Write-Warning "No error from the command with HistoryId $($HistoryId -join ',').`n         Showing errors from most recent command with errors $FoundErrorIndex"
+                $e = $global:Error.Where( { $_.InvocationInfo.HistoryId -in $FoundErrorIndex -or $_.ErrorRecord.InvocationInfo.HistoryId -in $FoundErrorIndex })
+                # If there were no errors from history, but there are errors, let's show them all
+                if ($e.Count -eq 0) {
+                    Write-Warning "No errors have HistoryId... Showing all errors."
+                    $e = $global:Error
+                }
+            } else {
+                Write-Warning "No error from the command with HistoryId $($HistoryId -join ',').`n         Most recent command with detectable errors was $FoundErrorIndex"
+            }
+
+        }
+    }
+    # Return only ErrorRecords -- no exceptions
+    @($e).ForEach{ if ($_ -is [System.Management.Automation.ErrorRecord]) { $_ } else { $_.ErrorRecord } }
+
+}
+
 function Format-Error {
     <#
         .SYNOPSIS
@@ -39,15 +102,16 @@ function Format-Error {
         })]
         $View = "Normal",
 
-        # Error records (e.g. from $Error). Defaults to the most recent error: $Error[0]
+        # The history index of the commands you want to see errors for (defaults to the most recent $Count errors)
+        [Parameter(Position = 0, ParameterSetName = "HistoryId")]
+        [Alias("Id")]
+        [int[]]$HistoryId = $(($MyInvocation.HistoryId - 1)..($MyInvocation.HistoryId - [Math]::Min(2, $MyInvocation.HistoryId))),
+
+        # Error records (e.g. from $Error).
+        # Defaults to Get-Error with the HistoryId
         [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName)]
         [Alias("ErrorRecord")]
-        [System.Management.Automation.ErrorRecord]$InputObject = $(
-            $e = $global:Error[0]
-            if ($e -is ([System.Management.Automation.ErrorRecord])) { $e }
-            elseif ($e.ErrorRecord -is ([System.Management.Automation.ErrorRecord])) { $e.ErrorRecord }
-            elseif ($global:Error.Count -eq 0) { Write-Warning "The global `$Error collection is empty" }
-        ),
+        [System.Management.Automation.ErrorRecord[]]$InputObject = $(Get-Error -HistoryId $HistoryId),
 
         # Allows ErrorView functions to recurse to InnerException
         [switch]$Recurse
@@ -72,7 +136,7 @@ function Set-ErrorView {
             A helper function to provide tab-completion for error view names
     #>
     [CmdletBinding()]
-    [Alias("fe")]
+    [Alias("sev")]
     [OutputType([System.Management.Automation.ErrorRecord])]
     param(
         # The name of the ErrorView you want to use (there must a matching ConvertTo-${View}ErrorView function)
@@ -87,7 +151,6 @@ function Set-ErrorView {
     )
     $global:ErrorView = $View
 }
-
 
 function Write-NativeCommandError {
     [CmdletBinding()]
@@ -254,11 +317,29 @@ function ConvertTo-NormalErrorView {
             }
         }
 
-        if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
-            $InputObject.Exception.Message + $posmsg + "`n "
-        } else {
-            $InputObject.ErrorDetails.Message + $posmsg
+        $Coloring = $(
+            if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
+                $InputObject.Exception.Message + $posmsg + "`n "
+            } else {
+                $InputObject.ErrorDetails.Message + $posmsg
+            }
+        )
+        $Lines = [regex]::Matches($Coloring, "\n").Count + 2
+        $Colors = Get-Gradient "DarkRed" "Goldenrod1" -ColorSpace HSB -Flatten -Length $Lines | Get-Complement -Passthru -ForceContrast
+        $Host.PrivateData.ErrorBackgroundColor = "DarkRed"
+        $Host.PrivateData.ErrorForegroundColor = "White"
+
+        $script:Index = 0
+
+        $SetColor = {
+            -join @(
+                $args[0].Value
+                $Colors[$Index].ToVtEscapeSequence($true)
+                $Colors[$Index+1].ToVtEscapeSequence($false)
+            )
+            $script:Index += 2
         }
+        "$(. $SetColor)$([regex]::Replace($Coloring, "\n", $SetColor))$bg:Clear$fg:Clear"
     }
 }
 
@@ -282,4 +363,91 @@ function ConvertTo-FullErrorView {
         }
     }
     $Detail
+}
+
+
+function ConvertTo-FireErrorView {
+    [CmdletBinding()]
+    param(
+        [System.Management.Automation.ErrorRecord]
+        $InputObject
+    )
+
+    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
+        $InputObject.Exception.Message
+    } else {
+        $myinv = $InputObject.InvocationInfo
+        if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError'))) {
+            $posmsg = $myinv.PositionMessage
+        } else {
+            $posmsg = ""
+        }
+
+        if ($posmsg -ne "") {
+            $posmsg = "`n" + $posmsg
+        }
+
+        if ( & { Set-StrictMode -Version 1; $InputObject.PSMessageDetails } ) {
+            $posmsg = " : " + $InputObject.PSMessageDetails + $posmsg
+        }
+
+        $indent = 4
+        $width = $host.UI.RawUI.BufferSize.Width - $indent - 2
+
+        $errorCategoryMsg = & { Set-StrictMode -Version 1; $InputObject.ErrorCategory_Message }
+        if ($null -ne $errorCategoryMsg) {
+            $indentString = "+ CategoryInfo            : " + $InputObject.ErrorCategory_Message
+        } else {
+            $indentString = "+ CategoryInfo            : " + $InputObject.CategoryInfo
+        }
+        $posmsg += "`n"
+        foreach ($line in @($indentString -split "(.{$width})")) {
+            if ($line) {
+                $posmsg += (" " * $indent + $line)
+            }
+        }
+
+        $indentString = "+ FullyQualifiedErrorId   : " + $InputObject.FullyQualifiedErrorId
+        $posmsg += "`n"
+        foreach ($line in @($indentString -split "(.{$width})")) {
+            if ($line) {
+                $posmsg += (" " * $indent + $line)
+            }
+        }
+
+        $originInfo = & { Set-StrictMode -Version 1; $InputObject.OriginInfo }
+        if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
+            $indentString = "+ PSComputerName          : " + $originInfo.PSComputerName
+            $posmsg += "`n"
+            foreach ($line in @($indentString -split "(.{$width})")) {
+                if ($line) {
+                    $posmsg += (" " * $indent + $line)
+                }
+            }
+        }
+
+        $Coloring = $(
+            if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
+                $InputObject.Exception.Message + $posmsg + "`n "
+            } else {
+                $InputObject.ErrorDetails.Message + $posmsg
+            }
+        )
+        $Lines = [regex]::Matches($Coloring, "\n").Count + 2
+        $Colors = Get-Gradient "DarkRed" "Goldenrod1" -ColorSpace HSB -Flatten -Length $Lines | Get-Complement -Passthru -ForceContrast
+        $Host.PrivateData.ErrorBackgroundColor = "DarkRed"
+        $Host.PrivateData.ErrorForegroundColor = "White"
+
+        $script:Index = 0
+
+        $SetColor = {
+            -join @(
+                $args[0].Value
+                $Colors[$Index].ToVtEscapeSequence($true)
+                $Colors[$Index + 1].ToVtEscapeSequence($false)
+            )
+            $script:Index += 2
+        }
+        "$(. $SetColor)$([regex]::Replace($Coloring, "\n", $SetColor))$bg:Clear$fg:Clear"
+    }
 }

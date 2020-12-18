@@ -9,7 +9,7 @@
 
     Copyright            = '(c) Joel Bennett. All rights reserved.'
 
-    FunctionsToExport    = 'Format-Error', 'Set-ErrorView', 'Write-NativeCommandError', 'ConvertTo-CategoryErrorView', 'ConvertTo-NormalErrorView', 'ConvertTo-SimpleErrorView', 'ConvertTo-FullErrorView'
+    FunctionsToExport    = 'Get-Error','Format-Error', 'Set-ErrorView', 'Write-NativeCommandError', 'ConvertTo-CategoryErrorView', 'ConvertTo-NormalErrorView', 'ConvertTo-SimpleErrorView', 'ConvertTo-FullErrorView'
 
     CmdletsToExport      = @()
     VariablesToExport    = @()
