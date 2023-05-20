@@ -17,8 +17,8 @@
               <ExpressionBinding>
                 <ScriptBlock>
                   <![CDATA[
-                    if ($formatter = Get-Command "ConvertTo-$($global:ErrorView -replace "View")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord]) {
-                      &@($formatter)[0] $_
+                    if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord])) {
+                      & ($formatter[0]) -InputObject $_
                     } else {
                       ConvertTo-NormalErrorView $_
                     }
