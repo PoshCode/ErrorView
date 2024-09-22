@@ -1,11 +1,11 @@
 @{
-    Description          = 'Enhances formatting ability for Errors'
+    Description          = 'Enhances formatting of Errors, and provides compatibility for older versions of PowerShell'
     GUID                 = '5857f85c-8a0a-44e1-8da5-c8ff352167e0'
     Author               = 'Joel Bennett'
     CompanyName          = 'PoshCode'
 
     ModuleToProcess      = 'ErrorView.psm1'
-    ModuleVersion        = '0.0.2'
+    ModuleVersion        = '0.0.3'
 
     Copyright            = '(c) Joel Bennett. All rights reserved.'
 
@@ -30,7 +30,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'I wrote this module to enhace ErrorViews for Windows PowerShell (without waiting for PS7+)'
+            ReleaseNotes = 'I wrote this module to enhance ErrorViews for PowerShell (without waiting for PS7+)'
 
         } # End of PSData hashtable
 
