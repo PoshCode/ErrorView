@@ -21,6 +21,6 @@ filter ConvertTo-NormalExceptionView {
         #$accentColor = if ($PSStyle.Formatting.ErrorAccent) { $PSStyle.Formatting.ErrorAccent } else { "`e[1;36m" }
     }
 
-    $errorColor + $InputObject.Exception.Message + $resetColor
+    $errorColor + $InputObject.Message + $resetColor
 
 }

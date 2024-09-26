@@ -22,12 +22,9 @@ filter ConvertTo-FullErrorView {
 
         $resetColor = "$([char]0x1b)[0m"
         $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
-        #$accentColor = if ($PSStyle.Formatting.ErrorAccent) { $PSStyle.Formatting.ErrorAccent } else { "`e[1;36m" }
-        $Detail = $InputObject | Format-List * -Force | Out-String -Width 120
-        $Detail = $Detail -replace "((?:Exception|FullyQualifiedErrorId).*`e\[0m)(.*)", "$($PSStyle.Formatting.ErrorAccent)`$1$($PSStyle.Formatting.Error)`$2$($PSStyle.Reset)"
-    } else {
-        $Detail = $InputObject | Format-List * -Force | Out-String -Width 120
     }
+
+    $Detail = $InputObject | Format-List * -Force | Out-String -Width 120
 
     # NOTE: ErrorViewRecurse is normally false, and only set temporarily by Format-Error -Recurse
     if ($ErrorViewRecurse) {

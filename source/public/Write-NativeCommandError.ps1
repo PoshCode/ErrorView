@@ -12,36 +12,40 @@ function Write-NativeCommandError {
         $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
         $accentColor = $PSStyle.Formatting.ErrorAccent
     }
+    if ($InputObject -is [System.Exception]) {
+        $errorColor + $InputObject.GetType().FullName + " : " + $resetColor
+    }
 
-    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") { return }
-
-    $invoc = $InputObject.InvocationInfo
-    if ($invoc -and $invoc.MyCommand) {
-        switch -regex ( $invoc.MyCommand.CommandType ) {
-            ([System.Management.Automation.CommandTypes]::ExternalScript) {
-                if ($invoc.MyCommand.Path) {
-                    $accentColor + $invoc.MyCommand.Path + " : " + $resetColor
-                }
-                break
-            }
-            ([System.Management.Automation.CommandTypes]::Script) {
-                if ($invoc.MyCommand.ScriptBlock) {
-                    $accentColor + $invoc.MyCommand.ScriptBlock.ToString() + " : " + $resetColor
-                }
-                break
-            }
-            default {
-                if ($invoc.InvocationName -match '^[&amp;\.]?$') {
-                    if ($invoc.MyCommand.Name) {
-                        $accentColor + $invoc.MyCommand.Name + " : " + $resetColor
+    # @('NativeCommandErrorMessage', 'NativeCommandError') -notcontains $_.FullyQualifiedErrorId -and @('CategoryView', 'ConciseView', 'DetailedView') -notcontains $ErrorView
+    if (@('NativeCommandErrorMessage', 'NativeCommandError') -notcontains $_.FullyQualifiedErrorId -and @('CategoryView', 'ConciseView', 'DetailedView') -notcontains $ErrorView) {
+        $invoc = $InputObject.InvocationInfo
+        if ($invoc -and $invoc.MyCommand) {
+            switch -regex ( $invoc.MyCommand.CommandType ) {
+                ([System.Management.Automation.CommandTypes]::ExternalScript) {
+                    if ($invoc.MyCommand.Path) {
+                        $errorColor + $invoc.MyCommand.Path + " : " + $resetColor
                     }
-                } else {
-                    $accentColor + $invoc.InvocationName + " : " + $resetColor
+                    break
                 }
-                break
+                ([System.Management.Automation.CommandTypes]::Script) {
+                    if ($invoc.MyCommand.ScriptBlock) {
+                        $errorColor + $invoc.MyCommand.ScriptBlock.ToString() + " : " + $resetColor
+                    }
+                    break
+                }
+                default {
+                    if ($invoc.InvocationName -match '^[&amp;\.]?$') {
+                        if ($invoc.MyCommand.Name) {
+                            $errorColor + $invoc.MyCommand.Name + " : " + $resetColor
+                        }
+                    } else {
+                        $errorColor + $invoc.InvocationName + " : " + $resetColor
+                    }
+                    break
+                }
             }
+        } elseif ($invoc -and $invoc.InvocationName) {
+            $errorColor + $invoc.InvocationName + " : " + $resetColor
         }
-    } elseif ($invoc -and $invoc.InvocationName) {
-        $accentColor + $invoc.InvocationName + " : " + $resetColor
     }
 }

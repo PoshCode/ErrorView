@@ -1,0 +1,14 @@
+{
+	"folders": [
+        {
+            "name": "ErrorView",
+            "path": "."
+        },
+        {
+            "path": "../../Tasks"
+        }
+    ],
+  "settings": {
+    "powershell.cwd": "."
+  }
+}

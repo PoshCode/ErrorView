@@ -11,17 +11,8 @@ filter ConvertTo-NormalErrorView {
         [System.Management.Automation.ErrorRecord]
         $InputObject
     )
-    $resetColor = ''
-    $errorColor = ''
-    #$accentColor = ''
 
-    if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__SuppressAnsiEscapeSequences))) {
-        $resetColor = "$([char]0x1b)[0m"
-        $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
-        #$accentColor = if ($PSStyle.Formatting.ErrorAccent) { $PSStyle.Formatting.ErrorAccent } else { "`e[1;36m" }
-    }
-
-    if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
+    if ($InputObject.FullyQualifiedErrorId -in 'NativeCommandErrorMessage','NativeCommandError') {
         $errorColor + $InputObject.Exception.Message + $resetColor
     } else {
         $myinv = $InputObject.InvocationInfo
@@ -44,9 +35,9 @@ filter ConvertTo-NormalErrorView {
 
         $errorCategoryMsg = &{ Set-StrictMode -Version 1; $InputObject.ErrorCategory_Message }
         if ($null -ne $errorCategoryMsg) {
-            $indentString = "+ CategoryInfo            : " + $InputObject.ErrorCategory_Message
+            $indentString = $accentColor + "+ CategoryInfo         : " + $resetColor + $InputObject.ErrorCategory_Message
         } else {
-            $indentString = "+ CategoryInfo            : " + $InputObject.CategoryInfo
+            $indentString = $accentColor + "+ CategoryInfo         : " + $resetColor + $InputObject.CategoryInfo
         }
         $posmsg += "`n"
         foreach ($line in @($indentString -split "(.{$width})")) {
@@ -55,7 +46,7 @@ filter ConvertTo-NormalErrorView {
             }
         }
 
-        $indentString = "+ FullyQualifiedErrorId   : " + $InputObject.FullyQualifiedErrorId
+        $indentString = $accentColor + "+ FullyQualifiedErrorId: " + $resetColor + $InputObject.FullyQualifiedErrorId
         $posmsg += "`n"
         foreach ($line in @($indentString -split "(.{$width})")) {
             if ($line) {
@@ -65,7 +56,7 @@ filter ConvertTo-NormalErrorView {
 
         $originInfo = &{ Set-StrictMode -Version 1; $InputObject.OriginInfo }
         if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
-            $indentString = "+ PSComputerName          : " + $originInfo.PSComputerName
+            $indentString = "+ PSComputerName       : " + $originInfo.PSComputerName
             $posmsg += "`n"
             foreach ($line in @($indentString -split "(.{$width})")) {
                 if ($line) {
@@ -75,9 +66,9 @@ filter ConvertTo-NormalErrorView {
         }
 
         if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
-            $errorColor + $InputObject.Exception.Message + $posmsg + $resetColor + "`n "
+            $errorColor + $InputObject.Exception.Message + $resetColor + $posmsg + "`n "
         } else {
-            $errorColor + $InputObject.ErrorDetails.Message + $posmsg + $resetColor
+            $errorColor + $InputObject.ErrorDetails.Message + $resetColor + $posmsg
         }
     }
 }
