@@ -30,5 +30,43 @@
         </CustomEntries>
       </CustomControl>
     </View>
+    <View>
+      <Name>ExceptionInstance</Name>
+      <OutOfBand />
+      <ViewSelectedBy>
+        <TypeName>System.Exception</TypeName>
+      </ViewSelectedBy>
+      <CustomControl>
+        <CustomEntries>
+          <CustomEntry>
+            <CustomItem>
+              <ExpressionBinding>
+                <ScriptBlock>Write-NativeCommandError $_</ScriptBlock>
+              </ExpressionBinding>
+              <ExpressionBinding>
+                <ScriptBlock>
+                  <![CDATA[
+                    if ($_.ErrorRecord) {
+                      $Record = $_.ErrorRecord
+                      if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord])) {
+                        & ($formatter[0]) -InputObject $Record
+                      } else {
+                        ConvertTo-NormalErrorView $Record
+                      }
+                    } else {
+                      if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ExceptionView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Exception])) {
+                        & ($formatter[0]) -InputObject $_
+                      } else {
+                        ConvertTo-NormalExceptionView $_
+                      }
+                    }
+                  ]]>
+                </ScriptBlock>
+              </ExpressionBinding>
+            </CustomItem>
+          </CustomEntry>
+        </CustomEntries>
+      </CustomControl>
+    </View>
   </ViewDefinitions>
 </Configuration>

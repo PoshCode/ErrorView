@@ -33,17 +33,18 @@ function Format-Error {
         })]
         $View = "Detailed",
 
-        [Parameter(ParameterSetName="Count", Mandatory)]
+        [Parameter(ParameterSetName="Count")]
         [int]$Newest = 1,
 
         # Error records (e.g. from $Error). Defaults to the most recent error: $Error[0]
         [Parameter(ValueFromPipeline, ValueFromPipelineByPropertyName, ParameterSetName="InputObject", Mandatory)]
         [Alias("ErrorRecord")]
-        [System.Management.Automation.ErrorRecord]$InputObject = $(
-            $e = $Error[0..($Newest-1)]
-            if ($e -is ([System.Management.Automation.ErrorRecord])) { $e }
-            elseif ($e.ErrorRecord -is ([System.Management.Automation.ErrorRecord])) { $e.ErrorRecord }
-            elseif ($Error.Count -eq 0) { Write-Warning "The global `$Error collection is empty" }
+        [PSObject]$InputObject = $(
+            if ($global:Error.Count -eq 0) {
+                Write-Warning "The global `$Error collection is empty"
+            } else {
+                $global:Error[0..($Newest-1)]
+            }
         ),
 
         # Allows ErrorView functions to recurse to InnerException
@@ -51,7 +52,7 @@ function Format-Error {
     )
     begin {
         $ErrorActionPreference = "Continue"
-        $View, $ErrorView = $ErrorView, $View
+        $ErrorView, $View = $View, $ErrorView
         [bool]$Recurse, [bool]$ErrorViewRecurse = [bool]$ErrorViewRecurse, $Recurse
     }
     process {

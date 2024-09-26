@@ -27,7 +27,6 @@ filter Set-ErrorView {
     ).Name -replace "ConvertTo-(\w+)ErrorView", '$1View' | Select-Object -Unique
 
     $ofs = ';'
-    [ScriptBlock]::Create("enum ErrorView { $Names }").Invoke()
-
+    .([ScriptBlock]::Create("enum ErrorView { $Names }"))
     [ErrorView]$global:ErrorView = $View
 }

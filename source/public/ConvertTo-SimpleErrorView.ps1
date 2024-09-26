@@ -4,6 +4,15 @@ function ConvertTo-SimpleErrorView {
         [System.Management.Automation.ErrorRecord]
         $InputObject
     )
+    $resetColor = ''
+    $errorColor = ''
+    #$accentColor = ''
+
+    if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__SuppressAnsiEscapeSequences))) {
+        $resetColor = "$([char]0x1b)[0m"
+        $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
+        #$accentColor = if ($PSStyle.Formatting.ErrorAccent) { $PSStyle.Formatting.ErrorAccent } else { "`e[1;36m" }
+    }
 
     if ($InputObject.FullyQualifiedErrorId -eq "NativeCommandErrorMessage") {
         $InputObject.Exception.Message
@@ -46,9 +55,9 @@ function ConvertTo-SimpleErrorView {
         }
 
         if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
-            $InputObject.Exception.Message + $posmsg + "`n "
+            $errorColor + $InputObject.Exception.Message + $posmsg + $resetColor + "`n "
         } else {
-            $InputObject.ErrorDetails.Message + $posmsg
+            $errorColor + $InputObject.ErrorDetails.Message + $posmsg + $resetColor
         }
     }
 }

@@ -15,5 +15,12 @@ filter ConvertTo-CategoryErrorView {
         [System.Management.Automation.ErrorRecord]
         $InputObject
     )
-    $InputObject.CategoryInfo.GetMessage()
+    $resetColor = ''
+    $errorColor = ''
+
+    if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__SuppressAnsiEscapeSequences))) {
+        $resetColor = "$([char]0x1b)[0m"
+        $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
+    }
+    $errorColor + $InputObject.CategoryInfo.GetMessage() + $resetColor
 }
