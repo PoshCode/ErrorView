@@ -1,55 +1,3 @@
-<#
-if (@('NativeCommandErrorMessage','NativeCommandError') -notcontains $_.FullyQualifiedErrorId -and @('CategoryView','ConciseView','DetailedView') -notcontains $ErrorView)
-{
-    $myinv = $_.InvocationInfo
-    if ($myinv -and $myinv.MyCommand)
-    {
-        switch -regex ( $myinv.MyCommand.CommandType )
-        {
-            ([System.Management.Automation.CommandTypes]::ExternalScript)
-            {
-                if ($myinv.MyCommand.Path)
-                {
-                    $myinv.MyCommand.Path + ' : '
-                }
-
-                break
-            }
-
-            ([System.Management.Automation.CommandTypes]::Script)
-            {
-                if ($myinv.MyCommand.ScriptBlock)
-                {
-                    $myinv.MyCommand.ScriptBlock.ToString() + ' : '
-                }
-
-                break
-            }
-            default
-            {
-                if ($myinv.InvocationName -match '^[&\.]?$')
-                {
-                    if ($myinv.MyCommand.Name)
-                    {
-                        $myinv.MyCommand.Name + ' : '
-                    }
-                }
-                else
-                {
-                    $myinv.InvocationName + ' : '
-                }
-
-                break
-            }
-        }
-    }
-    elseif ($myinv -and $myinv.InvocationName)
-    {
-        $myinv.InvocationName + ' : '
-    }
-}
-
-
 Set-StrictMode -Off
 $ErrorActionPreference = 'Stop'
 trap { 'Error found in error view definition: ' + $_.Exception.Message }
@@ -64,6 +12,7 @@ if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__Suppre
     $errorColor = $PSStyle.Formatting.Error
     $accentColor = $PSStyle.Formatting.ErrorAccent
 }
+
 function Get-ConciseViewPositionMessage {
 
     # returns a string cut to last whitespace
@@ -82,17 +31,30 @@ function Get-ConciseViewPositionMessage {
     $message = ''
     $prefix = ''
 
+    # Handle case where there is a TargetObject from a Pester `Should` assertion failure and we can show the error at the target rather than the script source
+    # Note that in some versions, this is a Dictionary&lt;,&gt; and in others it's a hashtable. So we explicitly cast to a shared interface in the method invocation
+    # to force using `IDictionary.Contains`. Hashtable does have it's own `ContainKeys` as well, but if they ever opt to use a custom `IDictionary`, that may not.
+    $useTargetObject = $null -ne $err.TargetObject -and
+        $err.TargetObject -is [System.Collections.IDictionary] -and
+        ([System.Collections.IDictionary]$err.TargetObject).Contains('Line') -and
+        ([System.Collections.IDictionary]$err.TargetObject).Contains('LineText')
+
     # The checks here determine if we show line detailed error information:
     # - check if `ParserError` and comes from PowerShell which eventually results in a ParseException, but during this execution it's an ErrorRecord
-    # - check if invocation is a script or multiple lines in the console
-    # - check that it's not a script module as expectation is that users don't want to see the line of error within a module
-    if ((($err.CategoryInfo.Category -eq 'ParserError' -and $err.Exception -is 'System.Management.Automation.ParentContainsErrorRecordException') -or $myinv.ScriptName -or $myinv.ScriptLineNumber -gt 1) -and $myinv.ScriptName -notmatch '\.psm1$') {
-        $useTargetObject = $false
+    $isParseError = $err.CategoryInfo.Category -eq 'ParserError' -and
+        $err.Exception -is [System.Management.Automation.ParentContainsErrorRecordException]
 
-        # Handle case where there is a TargetObject and we can show the error at the target rather than the script source
-        if ($_.TargetObject.Line -and $_.TargetObject.LineText) {
-            $posmsg = "${resetcolor}$($_.TargetObject.File)${newline}"
-            $useTargetObject = $true
+    # - check if invocation is a script or multiple lines in the console
+    $isMultiLineOrExternal = $myinv.ScriptName -or $myinv.ScriptLineNumber -gt 1
+
+    # - check that it's not a script module as expectation is that users don't want to see the line of error within a module
+    $shouldShowLineDetail = ($isParseError -or $isMultiLineOrExternal) -and
+        $myinv.ScriptName -notmatch '\.psm1$'
+
+    if ($useTargetObject -or $shouldShowLineDetail) {
+
+        if ($useTargetObject) {
+            $posmsg = "${resetcolor}$($err.TargetObject.File)${newline}"
         }
         elseif ($myinv.ScriptName) {
             if ($env:TERM_PROGRAM -eq 'vscode') {
@@ -108,8 +70,8 @@ function Get-ConciseViewPositionMessage {
         }
 
         if ($useTargetObject) {
-            $scriptLineNumber = $_.TargetObject.Line
-            $scriptLineNumberLength = $_.TargetObject.Line.ToString().Length
+            $scriptLineNumber = $err.TargetObject.Line
+            $scriptLineNumberLength = $err.TargetObject.Line.ToString().Length
         }
         else {
             $scriptLineNumber = $myinv.ScriptLineNumber
@@ -181,7 +143,7 @@ function Get-ConciseViewPositionMessage {
 
     # if rendering line information, break up the message if it's wider than the console
     if ($myinv -and $myinv.ScriptName -or $err.CategoryInfo.Category -eq 'ParserError') {
-        $prefixLength = "$([char]27)]8;;{0}`a{1}$([char]27)]8;;`a" -f $pwd, $pwd::new($prefix).ContentLength
+        $prefixLength = [System.Management.Automation.Internal.StringDecorated]::new($prefix).ContentLength
         $prefixVtLength = $prefix.Length - $prefixLength
 
         # replace newlines in message so it lines up correct
@@ -232,8 +194,8 @@ function Get-ConciseViewPositionMessage {
         $reason = $myinv.MyCommand
     }
     # If it's a scriptblock, better to show the command in the scriptblock that had the error
-    elseif ($_.CategoryInfo.Activity) {
-        $reason = $_.CategoryInfo.Activity
+    elseif ($err.CategoryInfo.Activity) {
+        $reason = $err.CategoryInfo.Activity
     }
     elseif ($myinv.MyCommand) {
         $reason = $myinv.MyCommand
@@ -264,9 +226,8 @@ if ($err.FullyQualifiedErrorId -eq 'NativeCommandErrorMessage' -or $err.FullyQua
     return "${errorColor}$($err.Exception.Message)${resetcolor}"
 }
 
-$myinv = $err.InvocationInfo
 if ($ErrorView -eq 'DetailedView') {
-    $message = Get-Error
+    $message = Get-Error | Out-String
     return "${errorColor}${message}${resetcolor}"
 }
 
@@ -281,10 +242,9 @@ if ($ErrorView -eq 'ConciseView') {
 }
 elseif ($myinv -and ($myinv.MyCommand -or ($err.CategoryInfo.Category -ne 'ParserError'))) {
     $posmsg = $myinv.PositionMessage
-}
-
-if ($posmsg -ne '') {
-    $posmsg = $newline + $posmsg
+    if ($posmsg -ne '') {
+        $posmsg = $newline + $posmsg
+    }
 }
 
 if ($err.PSMessageDetails) {
@@ -292,10 +252,19 @@ if ($err.PSMessageDetails) {
 }
 
 if ($ErrorView -eq 'ConciseView') {
+    $recommendedAction = $_.ErrorDetails.RecommendedAction
+    if (-not [String]::IsNullOrWhiteSpace($recommendedAction)) {
+        $recommendedAction = $newline +
+            ${errorColor} +
+            '  Recommendation: ' +
+            $recommendedAction +
+            ${resetcolor}
+    }
+
     if ($err.PSMessageDetails) {
         $posmsg = "${errorColor}${posmsg}"
     }
-    return $posmsg
+    return $posmsg + $recommendedAction
 }
 
 $indent = 4
@@ -331,5 +300,3 @@ $finalMsg = if ($err.ErrorDetails.Message) {
 }
 
 "${errorColor}${finalMsg}${resetcolor}"
-
-#>

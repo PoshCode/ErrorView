@@ -11,16 +11,8 @@ filter ConvertTo-NormalExceptionView {
         [System.Exception]
         $InputObject
     )
-    $resetColor = ''
-    $errorColor = ''
-    #$accentColor = ''
-
-    if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__SuppressAnsiEscapeSequences))) {
-        $resetColor = "$([char]0x1b)[0m"
-        $errorColor = if ($PSStyle.Formatting.Error) { $PSStyle.Formatting.Error } else { "`e[1;31m" }
-        #$accentColor = if ($PSStyle.Formatting.ErrorAccent) { $PSStyle.Formatting.ErrorAccent } else { "`e[1;36m" }
+    begin { ResetColor }
+    process {
+        $errorColor + $InputObject.Message + $resetColor
     }
-
-    $errorColor + $InputObject.Message + $resetColor
-
 }

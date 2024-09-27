@@ -11,64 +11,49 @@ filter ConvertTo-NormalErrorView {
         [System.Management.Automation.ErrorRecord]
         $InputObject
     )
-
-    if ($InputObject.FullyQualifiedErrorId -in 'NativeCommandErrorMessage','NativeCommandError') {
-        $errorColor + $InputObject.Exception.Message + $resetColor
-    } else {
-        $myinv = $InputObject.InvocationInfo
-        if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError'))) {
-            $posmsg = $myinv.PositionMessage
+    begin { ResetColor }
+    process {
+        if ($InputObject.FullyQualifiedErrorId -in 'NativeCommandErrorMessage','NativeCommandError') {
+            "${errorColor}$($InputObject.Exception.Message)${resetColor}"
         } else {
-            $posmsg = ""
-        }
-
-        if ($posmsg -ne "") {
-            $posmsg = "`n" + $posmsg
-        }
-
-        if ( &{ Set-StrictMode -Version 1; $InputObject.PSMessageDetails } ) {
-            $posmsg = " : " +  $InputObject.PSMessageDetails + $posmsg
-        }
-
-        $indent = 4
-        $width = $host.UI.RawUI.BufferSize.Width - $indent - 2
-
-        $errorCategoryMsg = &{ Set-StrictMode -Version 1; $InputObject.ErrorCategory_Message }
-        if ($null -ne $errorCategoryMsg) {
-            $indentString = $accentColor + "+ CategoryInfo         : " + $resetColor + $InputObject.ErrorCategory_Message
-        } else {
-            $indentString = $accentColor + "+ CategoryInfo         : " + $resetColor + $InputObject.CategoryInfo
-        }
-        $posmsg += "`n"
-        foreach ($line in @($indentString -split "(.{$width})")) {
-            if ($line) {
-                $posmsg += (" " * $indent + $line)
+            $myinv = $InputObject.InvocationInfo
+            $posmsg = ''
+            if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError')) -and $myinv.PositionMessage) {
+                $posmsg = $newline + $myinv.PositionMessage
             }
-        }
 
-        $indentString = $accentColor + "+ FullyQualifiedErrorId: " + $resetColor + $InputObject.FullyQualifiedErrorId
-        $posmsg += "`n"
-        foreach ($line in @($indentString -split "(.{$width})")) {
-            if ($line) {
-                $posmsg += (" " * $indent + $line)
+            if ($err.PSMessageDetails) {
+                $posmsg = ' : ' + $err.PSMessageDetails + $posmsg
             }
-        }
 
-        $originInfo = &{ Set-StrictMode -Version 1; $InputObject.OriginInfo }
-        if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
-            $indentString = "+ PSComputerName       : " + $originInfo.PSComputerName
-            $posmsg += "`n"
-            foreach ($line in @($indentString -split "(.{$width})")) {
-                if ($line) {
-                    $posmsg += (" " * $indent + $line)
-                }
+            $Wrap = @{
+                Width = $width
+                IndentPadding = "                         "
             }
-        }
+            $width = $host.UI.RawUI.BufferSize.Width - 2
 
-        if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
-            $errorColor + $InputObject.Exception.Message + $resetColor + $posmsg + "`n "
-        } else {
-            $errorColor + $InputObject.ErrorDetails.Message + $resetColor + $posmsg
+            $errorCategoryMsg = $InputObject.ErrorCategory_Message
+            [string]$line = if ($null -ne $errorCategoryMsg) {
+                $accentColor + "+ CategoryInfo         : " + $errorColor + $InputObject.ErrorCategory_Message | WrapString @Wrap
+            } else {
+                $accentColor + "+ CategoryInfo         : " + $errorColor + $InputObject.CategoryInfo | WrapString @Wrap
+            }
+            $posmsg += $newline + $line
+
+            $line = $accentColor + "+ FullyQualifiedErrorId: " + $errorColor + $InputObject.FullyQualifiedErrorId | WrapString @Wrap
+            $posmsg += $newline + $line
+
+            $originInfo = $InputObject.OriginInfo
+            if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
+                $line = $accentColor + "+ PSComputerName       : " + $errorColor + $originInfo.PSComputerName | WrapString @Wrap
+                $posmsg += $newline + $line
+            }
+
+            if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
+                $errorColor + $InputObject.Exception.Message + $posmsg + $resetColor
+            } else {
+                $errorColor + $InputObject.ErrorDetails.Message + $posmsg + $resetColor
+            }
         }
     }
 }

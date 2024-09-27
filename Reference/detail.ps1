@@ -1,7 +1,6 @@
-<#
-[int]$maxDepth = 10
 Set-StrictMode -Off
 
+$maxDepth = 10
 $ellipsis = "`u{2026}"
 $resetColor = ''
 $errorColor = ''
@@ -117,13 +116,28 @@ function Show-ErrorRecord($obj, [int]$indent = 0, [int]$depth = 1) {
                     $isFirstElement = $true
                     foreach ($value in $prop.Value) {
                         $null = $output.Append($newline)
-                        if (!$isFirstElement) {
-                            $null = $output.Append($newline)
+                        $valueIndent = ' ' * ($newIndent + 2)
+
+                        if ($value -is [Type]) {
+                            # Just show the typename instead of it as an object
+                            $null = $output.Append("${prefix}${valueIndent}[$($value.ToString())]")
                         }
-                        $null = $output.Append((Show-ErrorRecord $value $newIndent ($depth + 1)))
+                        elseif ($value -is [string] -or $value.GetType().IsPrimitive) {
+                            $null = $output.Append("${prefix}${valueIndent}${value}")
+                        }
+                        else {
+                            if (!$isFirstElement) {
+                                $null = $output.Append($newline)
+                            }
+                            $null = $output.Append((Show-ErrorRecord $value $newIndent ($depth + 1)))
+                        }
                         $isFirstElement = $false
                     }
                 }
+            }
+            elseif ($prop.Value -is [Type]) {
+                # Just show the typename instead of it as an object
+                $null = $output.Append("[$($prop.Value.ToString())]")
             }
             # Anything else, we convert to string.
             # ToString() can throw so we use LanguagePrimitives.TryConvertTo() to hide a convert error
@@ -180,4 +194,3 @@ elseif ($_.PSObject.TypeNames.Contains('System.Exception#PSExtendedError')) {
 }
 
 Show-ErrorRecord $_
-#>

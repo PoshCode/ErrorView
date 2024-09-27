@@ -12,11 +12,12 @@
           <CustomEntry>
             <CustomItem>
               <ExpressionBinding>
-                <ScriptBlock>Write-NativeCommandError $_</ScriptBlock>
-              </ExpressionBinding>
-              <ExpressionBinding>
                 <ScriptBlock>
                   <![CDATA[
+                    Set-StrictMode -Off
+                    $ErrorActionPreference = 'Stop'
+                    trap { 'Error found in error view definition: ' + $_.Exception.Message }
+
                     if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord])) {
                       & ($formatter[0]) -InputObject $_
                     } else {
@@ -41,11 +42,12 @@
           <CustomEntry>
             <CustomItem>
               <ExpressionBinding>
-                <ScriptBlock>Write-NativeCommandError $_</ScriptBlock>
-              </ExpressionBinding>
-              <ExpressionBinding>
                 <ScriptBlock>
                   <![CDATA[
+                    Set-StrictMode -Off
+                    $ErrorActionPreference = 'Stop'
+                    trap { 'Error found in error view definition: ' + $_.Exception.Message }
+
                     if ($_.ErrorRecord) {
                       $Record = $_.ErrorRecord
                       if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord])) {
