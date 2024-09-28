@@ -27,10 +27,9 @@ filter ConvertTo-NormalErrorView {
             }
 
             $Wrap = @{
-                Width = $width
+                Width = $host.UI.RawUI.BufferSize.Width - 2
                 IndentPadding = "                         "
             }
-            $width = $host.UI.RawUI.BufferSize.Width - 2
 
             $errorCategoryMsg = $InputObject.ErrorCategory_Message
             [string]$line = if ($null -ne $errorCategoryMsg) {
