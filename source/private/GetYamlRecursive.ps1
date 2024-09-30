@@ -13,7 +13,7 @@
 
         # Optionally, a limit on the depth to recurse properties (defaults to 16)
         [parameter()]
-        [int]$depth = 16,
+        [int]$depth = 1,
 
         # If set, include empty and null properties in the output
         [switch]$IncludeEmpty,
@@ -27,18 +27,23 @@
         [switch]$XmlAsXml
     )
     process {
-        $wrap = [Console]::BufferWidth - 1 - ($NestingLevel * 2)
+        $Width = $Host.UI.RawUI.BufferSize.Width - 1 - ($NestingLevel * 2)
+        $__hasoutput = $true
+        $padding = '  ' * $NestingLevel # # lets just create our left-padding for the block
+        $Recurse = @{
+            'Depth'        = $depth + 1
+            'NestingLevel' = $NestingLevel + 1
+            'XmlAsXml'     = $XmlAsXml
+        }
+        $Wrap = @{
+            Width         = $Host.UI.RawUI.BufferSize.Width - 2
+            IndentPadding = $padding
+            Colors        = $LineColors
+        }
+
         @(
             if ($Null -eq $InputObject) { return 'null' } # if it is null return null
             if ($NestingLevel -eq 0 -and $local:__hasoutput) { '---' } # if we have output before, add a yaml separator
-            $__hasoutput = $true
-            $padding = "`n$('  ' * $NestingLevel)" # lets just create our left-padding for the block
-            $Recurse = @{
-                'Depth'        = $depth - 1
-                'NestingLevel' = $NestingLevel + 1
-                'XmlAsXml'     = $XmlAsXml
-            }
-            $Wrap =
 
             try {
                 switch ($InputObject) {
@@ -57,7 +62,7 @@
                     }
                     { $InputObject -is [System.Xml.XmlDocument] -or $InputObject -is [System.Xml.XmlElement] } {
                         "|"
-                        $InputObject.OuterXml | WrapString $Wrap $padding -Colors:$LineColors
+                        $InputObject.OuterXml | WrapString @Wrap
                         break
                     }
                     { $InputObject -is [datetime] -or $InputObject -is [datetimeoffset] } {
@@ -77,7 +82,7 @@
                     }
                     # If we're going to go over our depth, just output like it's a value type
                     # ValueTypes are just output with no possibility of wrapping or recursion
-                    { $InputObject -is [Enum] -or $InputObject.GetType().BaseType -eq [ValueType] -or $depth -eq 1 } {
+                    { $InputObject -is [Enum] -or $InputObject.GetType().BaseType -eq [ValueType] -or $depth -gt $maxDepth } {
                         "$InputObject"
                         break
                     }
@@ -87,7 +92,7 @@
                     { $InputObject -is [System.Collections.IDictionary] } {
                         foreach ($kvp in  $InputObject.GetEnumerator()) {
                             # Write-Verbose "$($padding)Enumerate $($property.Name)"
-                            "$padding$accentColor$($kvp.Name):$resetColor " +
+                            "$newline$padding$accentColor$($kvp.Name):$resetColor " +
                             (GetYamlRecursive -InputObject $kvp.Value @Recurse)
                         }
                         break
@@ -98,24 +103,27 @@
                             # Write-Verbose "$($padding)Enumerate $($property.Name)"
                             $Value = GetYamlRecursive -InputObject $item @Recurse
                             # if ($Value -ne 'null' -or $IncludeEmpty) {
-                            "$accentColor$padding$resetColor- $Value"
+                            "$newline$accentColor$padding$resetColor- $Value"
                             # }
                         }
                         break
                     }
 
                     # Limit recursive enumeration to specific types:
-                    { $InputObject -is [Exception] -or $InputObject -is [System.Management.Automation.ErrorRecord] -or
+                    { $InputObject -is [Exception] -or ($InputObject -is [System.Management.Automation.ErrorRecord] -and $depth -lt 2) -or
                         $InputObject.PSTypeNames[0] -in @(
-                            'System.Exception'
-                            'System.Management.Automation.ErrorRecord'
+                            # 'System.Exception'
+                            # 'System.Management.Automation.ErrorRecord'
                             'Microsoft.Rest.HttpRequestMessageWrapper'
                             'Microsoft.Rest.HttpResponseMessageWrapper'
                             'System.Management.Automation.InvocationInfo'
                         ) } {
+                        if ($depth -ge $maxDepth) {
+                            $null = $output.Append($ellipsis)
+                        }
                         # For exceptions, output a fake property for the exception type
                         if ($InputObject -is [Exception]) {
-                            "$padding${accentColor}#Type:$resetColor ${errorAccentColor}" + $InputObject.GetType().FullName + $resetColor
+                            "$newline$padding${accentColor}#Type:$resetColor ${accentColor}" + $InputObject.GetType().FullName + $resetColor
                         }
                         foreach ($property in $InputObject.PSObject.Properties) {
                             if ($property.Value) {
@@ -128,7 +136,7 @@
                                     $Value = "$errorColor$Value$resetColor"
                                 }
                                 if ((-not [string]::IsNullOrEmpty($Value) -and $Value -ne 'null' -and $Value.Count -gt 0) -or $IncludeEmpty) {
-                                    "$padding$accentColor$($property.Name):$resetColor " + $Value
+                                    "$newline$padding$accentColor$($property.Name):$resetColor " + $Value
                                 }
                             }
                         }
@@ -148,9 +156,9 @@
                         $StringValue = $null
                         if ([System.Management.Automation.LanguagePrimitives]::TryConvertTo($InputObject, [string], [ref]$StringValue) -and $null -ne $StringValue) {
                             $StringValue = $StringValue.Trim()
-                            if ($StringValue -match '[\r\n]' -or $StringValue.Length -gt $wrap) {
-                                ">" # signal that we are going to use the readable 'newlines-folded' format
-                                $StringValue | WrapString $Wrap $padding -Colors:$LineColors
+                            if ($StringValue -match '[\r\n]' -or $StringValue.Length -gt $Width) {
+                                ">$newline" # signal that we are going to use the readable 'newlines-folded' format
+                                $StringValue | WrapString @Wrap -EmphasizeOriginalNewlines
                             } elseif ($StringValue.Contains(":")) {
                                 "'$($StringValue -replace '''', '''''')'" # single quote it
                             } else {
@@ -162,7 +170,7 @@
                     }
                 }
             } catch {
-                Write-Error "Error'$($_)' in script $($_.InvocationInfo.ScriptName) $($_.InvocationInfo.Line.Trim()) (line $($_.InvocationInfo.ScriptLineNumber)) char $($_.InvocationInfo.OffsetInLine) executing $($_.InvocationInfo.MyCommand) on $type object '$($InputObject)' Class: $($InputObject.GetType().Name) BaseClass: $($InputObject.GetType().BaseType.Name) "
+                "Error formatting error ($($_)) in script $($_.InvocationInfo.ScriptName) $($_.InvocationInfo.Line.Trim()) (line $($_.InvocationInfo.ScriptLineNumber)) char $($_.InvocationInfo.OffsetInLine) executing $($_.InvocationInfo.MyCommand) on $type object '$($InputObject)' Class: $($InputObject.GetType().Name) BaseClass: $($InputObject.GetType().BaseType.Name) "
             }
         ) -join ""
     }

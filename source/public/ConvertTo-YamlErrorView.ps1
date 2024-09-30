@@ -12,22 +12,14 @@
         [System.Management.Automation.ErrorRecord]
         $InputObject,
 
-        # Optionally, a limit on the depth to recurse properties (defaults to 16)
-        [parameter()]
-        [int]$depth = 16,
+        # The maximum depth to recurse into the object
+        [int]$maxDepth = 10,
 
         # If set, include empty and null properties in the output
-        [switch]$IncludeEmpty,
-
-        # Recursive use only. Handles indentation for formatting
-        [parameter(DontShow)]
-        [int]$NestingLevel = 0,
-
-        # use OuterXml instead of treating XmlDocuments like objects
-        [parameter(DontShow)]
-        [switch]$XmlAsXml
+        [switch]$IncludeEmpty
     )
+    begin { ResetColor }
     process {
-        GetYamlRecursive $InputObject
+        GetYamlRecursive -InputObject $InputObject -IncludeEmpty:$IncludeEmpty
     }
 }
