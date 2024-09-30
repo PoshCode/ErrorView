@@ -78,7 +78,8 @@ function GetListRecursive {
                 $Wrap = @{
                     Width = $Host.UI.RawUI.BufferSize.Width - 2
                     IndentPadding = ""
-                    HangingIndent = "   "
+                    WrappedIndent = "   "
+                    Colors        = $LineColors
                 }
                 $null = $output.Append(($prop.Value | WrapString @Wrap))
             } elseif ($prop.Name -eq 'HResult') {
@@ -111,9 +112,9 @@ function GetListRecursive {
 
                         if ($value -is [Type]) {
                             # Just show the typename instead of it as an object
-                            $null = $output.Append("${nextPadding}[$($value.ToString())]")
+                            $null = $output.Append("[$($value.ToString())]")
                         } elseif ($value -is [string] -or $value.GetType().IsPrimitive) {
-                            $null = $output.Append("${nextPadding}${value}")
+                            $null = $output.Append("${value}")
                         } else {
                             if (!$isFirstElement) {
                                 $null = $output.Append($newline)
@@ -141,10 +142,14 @@ function GetListRecursive {
                     }
                     $Wrap = @{
                         Width = $Host.UI.RawUI.BufferSize.Width - 2
+                        # Because the first line contains the property name, we don't want to indent it
+                        FirstLineIndent = ''
+                        # But all other lines (including wrapped lines) should be indented to align
                         IndentPadding = " " * ($nextIndent + $prop.Name.Length)
+                        Colors = $LineColors
                     }
 
-                    $null = $output.Append(($value | WrapString @Wrap).TrimStart())
+                    $null = $output.Append(($value | WrapString @Wrap))
                 }
             }
 
