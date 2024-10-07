@@ -22,5 +22,10 @@ filter ConvertTo-DetailedErrorView {
     begin { ResetColor }
     process {
         $newline + (GetListRecursive $InputObject) + $newline
+        if ($Env:GITHUB_ACTIONS) {
+            Write-Host "::error $(GetGoogleWorkflowPositionMesage),title=$(GetErrorTitle $InputObject)::$(GetErrorMessage $InputObject)"
+        } elseif ($Env:TF_BUILD) {
+            Write-Host "##vso[task.logissue type=error;$(GetAzurePipelinesPositionMesage)]$(GetErrorTitle $InputObject): $(GetErrorMessage $InputObject)"
+        }
     }
 }

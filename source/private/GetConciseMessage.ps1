@@ -1,4 +1,4 @@
-filter GetConciseViewPositionMessage {
+filter GetConciseMessage {
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline)]

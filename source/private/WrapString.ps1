@@ -1,13 +1,3 @@
-$script:AnsiPattern = "[\u001b\u009b][[\]()#;?]*(?:(?:(?:(?:;[-a-zA-Z\d\/#&.:=?%@~_]+)*|[a-zA-Z\d]+(?:;[-a-zA-Z\d\/#&.:=?%@~_]*)*)?(?:\u001b\u005c|\u0007))|(?:(?:\d{1,4}(?:;\d{0,4})*)?[\dA-PR-TZcf-nq-uy=><~]))"
-$script:AnsiRegex = [Regex]::new($AnsiPattern, "Compiled");
-function MeasureString {
-    [CmdletBinding()]
-    param(
-        [string]$InputObject
-    )
-    $AnsiRegex.Replace($InputObject, '').Length
-}
-
 
 filter WrapString {
     [CmdletBinding()]

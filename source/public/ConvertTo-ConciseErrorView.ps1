@@ -15,7 +15,7 @@ function ConvertTo-ConciseErrorView {
                 $local:resetColor = "<<<"
             }
 
-            $message = GetConciseViewPositionMessage -InputObject $InputObject
+            $message = GetConciseMessage -InputObject $InputObject
 
             if ($InputObject.PSMessageDetails) {
                 $message = $errorColor + ' : ' + $InputObject.PSMessageDetails + $message
