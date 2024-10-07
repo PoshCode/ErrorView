@@ -150,7 +150,7 @@ function Get-ConciseViewPositionMessage {
         $message = $message.Replace($newline, ' ').Replace("`n", ' ').Replace("`t", ' ')
 
         $windowWidth = 120
-        if ($Host.UI.RawUI -ne $null) {
+        if ($null -ne $Host.UI.RawUI) {
             $windowWidth = $Host.UI.RawUI.WindowSize.Width
         }
 

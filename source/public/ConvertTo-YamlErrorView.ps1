@@ -5,6 +5,7 @@
         .DESCRIPTION
             This produces valid Yaml output from ErrorRecord you pass to it, recursively.
     #>
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'maxDepth')]
     [CmdletBinding()]
     param(
         # The object that you want to convert to YAML

@@ -8,7 +8,6 @@ filter GetConciseMessage {
     $err = $InputObject
     $posmsg = ''
     $headerWhitespace = ''
-    $offsetWhitespace = ''
     $message = ''
     $prefix = ''
 
@@ -90,7 +89,6 @@ filter GetConciseMessage {
         }
 
         $posmsg += "${accentColor}${lineWhitespace}${ScriptLineNumber} ${verticalBar} ${resetcolor}${line}"
-        $offsetWhitespace = ' ' * $offsetInLine
         $prefix = "${accentColor}${headerWhitespace}     ${verticalBar} ${errorColor}"
         if ($highlightLine -ne '') {
             $posMsg += "${prefix}${highlightLine}${newline}"
@@ -122,7 +120,7 @@ filter GetConciseMessage {
         $message = $message.Replace($newline, ' ').Replace("`n", ' ').Replace("`t", ' ')
 
         $windowWidth = 120
-        if ($Host.UI.RawUI -ne $null) {
+        if ($null -ne $Host.UI.RawUI) {
             $windowWidth = $Host.UI.RawUI.WindowSize.Width
         }
 
