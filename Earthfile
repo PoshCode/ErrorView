@@ -8,7 +8,7 @@ ARG --global EARTHLY_BUILD_SHA
 ARG --global EARTHLY_GIT_BRANCH
 # These are my common paths, used in my shared /Tasks repo
 ARG --global OUTPUT_ROOT=/Modules
-ARG --global TEST_ROOT=/Tests
+ARG --global TEST_ROOT=/tests
 ARG --global TEMP_ROOT=/temp
 # These are my common build args, used in my shared /Tasks repo
 ARG --global MODULE_NAME=ErrorView
@@ -59,7 +59,7 @@ test:
     # BUILD +build
     FROM +build
     # Copy the test files here, so we can avoid rebuilding when iterating on tests
-    COPY --if-exists --dir Tests/ ScriptAnalyzerSettings.psd1 /work
+    COPY --if-exists --dir $TEST_ROOT ScriptAnalyzerSettings.psd1 /work
     RUN ["pwsh", "-Command", "Invoke-Build", "-Task", "Test", "-File", "Build.build.ps1"]
 
     # SAVE ARTIFACT [--keep-ts] [--keep-own] [--if-exists] [--force] <src> [<artifact-dest-path>] [AS LOCAL <local-path>]

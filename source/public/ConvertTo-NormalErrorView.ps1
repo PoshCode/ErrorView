@@ -18,6 +18,7 @@ filter ConvertTo-NormalErrorView {
         } else {
             $myinv = $InputObject.InvocationInfo
             $posmsg = ''
+
             if ($myinv -and ($myinv.MyCommand -or ($InputObject.CategoryInfo.Category -ne 'ParserError')) -and $myinv.PositionMessage) {
                 $posmsg = $newline + $myinv.PositionMessage
             }
@@ -29,29 +30,30 @@ filter ConvertTo-NormalErrorView {
             $Wrap = @{
                 Width = $host.UI.RawUI.BufferSize.Width - 2
                 IndentPadding = "                         "
+                FirstLineIndent = ""
             }
 
             $errorCategoryMsg = $InputObject.ErrorCategory_Message
             [string]$line = if ($null -ne $errorCategoryMsg) {
-                $accentColor + "+ CategoryInfo         : " + $errorColor + $InputObject.ErrorCategory_Message | WrapString @Wrap
+                $accentColor + "+ CategoryInfo          : " + $errorColor + $InputObject.ErrorCategory_Message | WrapString @Wrap
             } else {
-                $accentColor + "+ CategoryInfo         : " + $errorColor + $InputObject.CategoryInfo | WrapString @Wrap
+                $accentColor + "+ CategoryInfo          : " + $errorColor + $InputObject.CategoryInfo | WrapString @Wrap
             }
             $posmsg += $newline + $line
 
-            $line = $accentColor + "+ FullyQualifiedErrorId: " + $errorColor + $InputObject.FullyQualifiedErrorId | WrapString @Wrap
+            $line = $accentColor + "+ FullyQualifiedErrorId : " + $errorColor + $InputObject.FullyQualifiedErrorId | WrapString @Wrap
             $posmsg += $newline + $line
 
             $originInfo = $InputObject.OriginInfo
             if (($null -ne $originInfo) -and ($null -ne $originInfo.PSComputerName)) {
-                $line = $accentColor + "+ PSComputerName       : " + $errorColor + $originInfo.PSComputerName | WrapString @Wrap
+                $line = $accentColor + "+ PSComputerName        : " + $errorColor + $originInfo.PSComputerName | WrapString @Wrap
                 $posmsg += $newline + $line
             }
 
             if (!$InputObject.ErrorDetails -or !$InputObject.ErrorDetails.Message) {
-                $errorColor + $InputObject.Exception.Message + $posmsg + $resetColor
+                $errorColor + (GetErrorPrefix -InputObject $InputObject) + $InputObject.Exception.Message + $posmsg + $resetColor
             } else {
-                $errorColor + $InputObject.ErrorDetails.Message + $posmsg + $resetColor
+                $errorColor + (GetErrorPrefix -InputObject $InputObject) + $InputObject.ErrorDetails.Message + $posmsg + $resetColor
             }
         }
     }

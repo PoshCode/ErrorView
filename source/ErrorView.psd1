@@ -31,7 +31,7 @@
 
             # ReleaseNotes of this module
             ReleaseNotes = 'I wrote this module to enhance ErrorViews for PowerShell (without waiting for PS7+)'
-
+            Prerelease   = ""
         } # End of PSData hashtable
 
     } # End of PrivateData hashtable

@@ -1,4 +1,4 @@
-function Format-Error {
+filter Format-Error {
     <#
         .SYNOPSIS
             Formats an error (or exception) for the screen using a specified error view
@@ -17,7 +17,7 @@ function Format-Error {
 
             Shows the full error view of the specific error, recursing into the inner exceptions (if that's supported by the view)
     #>
-    [CmdletBinding(DefaultParameterSetName = "InputObject")]
+    [CmdletBinding(DefaultParameterSetName = "Count")]
     [Alias("fe"<#, "Get-Error"#>)]
     [OutputType([System.Management.Automation.ErrorRecord])]
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '', Justification = 'The ArgumentCompleter parameters are the required method signature')]
@@ -31,7 +31,7 @@ function Format-Error {
             Get-Command ConvertTo-*ErrorView -ListImported -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord], [System.Exception]
             ).Name -replace "ConvertTo-(.*)ErrorView",'$1' -like "*$($wordToComplete)*")
         })]
-        $View = "Detailed",
+        $View = $global:ErrorView,
 
         [Parameter(ParameterSetName="Count")]
         [int]$Newest = 1,
@@ -50,19 +50,30 @@ function Format-Error {
         # Encourages ErrorView functions to recurse InnerException properties
         [switch]$Recurse
     )
-    begin {
-        $ErrorActionPreference = "Continue"
+    Set-StrictMode -Off
+    $ErrorActionPreference = 'Stop'
+    trap { 'Error found in error view definition: ' + $_.Exception.Message }
+    if ($InputObject.ErrorRecord) {
+        $InputObject = $InputObject.ErrorRecord
+    }
 
-        $local:_ErrorView, $global:ErrorView = $global:ErrorView, $View
-        $local:_ErrorViewRecurse, [bool]$global:ErrorViewRecurse = [bool]$global:ErrorViewRecurse, $Recurse
+    $Views = @{
+        ListImported = $true
+        ErrorAction = "Ignore"
+        ParameterName = "InputObject"
     }
-    process {
-        $InputObject
-    }
-    end {
-        $global:ErrorView = $local:_ErrorView
-        if ($null -ne $local:_ErrorViewRecurse) {
-            [bool]$global:ErrorViewRecurse = $local:_ErrorViewRecurse
+
+    if ($InputObject -is [System.Management.Automation.ErrorRecord]) {
+        if (($formatter = @(Get-Command "ConvertTo-$($View -replace "View$")ErrorView" @Views -ParameterType [System.Management.Automation.ErrorRecord]))) {
+            . ($formatter[0]) -InputObject $InputObject
+        } else {
+            ConvertTo-NormalErrorView $InputObject
+        }
+    } else {
+        if (($formatter = @(Get-Command "ConvertTo-$($View -replace "View$")ExceptionView" @Views -ParameterType [System.Exception]))) {
+            . ($formatter[0]) -InputObject $InputObject
+        } else {
+            ConvertTo-NormalExceptionView $InputObject
         }
     }
 }

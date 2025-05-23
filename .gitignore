@@ -1,2 +1,4 @@
 output/
 Modules/
+# Ignore version number folders (I put my module in these so I can use it)
+/[0-9]*/

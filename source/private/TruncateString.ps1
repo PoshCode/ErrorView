@@ -19,3 +19,22 @@ filter TruncateString {
 
     ($InputObject.Substring(0,$length) -split $wrapper,-2)[0]
 }
+
+function TrimAnsi($string) {
+    $words = $string -split ' '
+    $last = $words.length;
+
+    while ($last > 0) {
+        if ((Measure-String $words[$last - 1]) -gt 0) {
+            break
+        }
+
+        $last--
+    }
+
+    if ($last -ne $words.length) {
+        return $string
+    }
+
+    ($words[0..$last] -join ' ') + ($words[$last..$words.length] -join '')
+}

@@ -5,7 +5,6 @@ filter GetConciseMessage {
         [System.Management.Automation.ErrorRecord]
         $InputObject
     )
-    $err = $InputObject
     $posmsg = ''
     $headerWhitespace = ''
     $message = ''
@@ -14,44 +13,45 @@ filter GetConciseMessage {
     # Handle case where there is a TargetObject from a Pester `Should` assertion failure and we can show the error at the target rather than the script source
     # Note that in some versions, this is a Dictionary&lt;,&gt; and in others it's a hashtable. So we explicitly cast to a shared interface in the method invocation
     # to force using `IDictionary.Contains`. Hashtable does have it's own `ContainKeys` as well, but if they ever opt to use a custom `IDictionary`, that may not.
-    $useTargetObject = $null -ne $err.TargetObject -and
-    $err.TargetObject -is [System.Collections.IDictionary] -and
-        ([System.Collections.IDictionary]$err.TargetObject).Contains('Line') -and
-        ([System.Collections.IDictionary]$err.TargetObject).Contains('LineText')
+    $useTargetObject = $null -ne $InputObject.TargetObject -and
+    $InputObject.TargetObject -is [System.Collections.IDictionary] -and
+        ([System.Collections.IDictionary]$InputObject.TargetObject).Contains('Line') -and
+        ([System.Collections.IDictionary]$InputObject.TargetObject).Contains('LineText')
 
     # The checks here determine if we show line detailed error information:
     # - check if `ParserError` and comes from PowerShell which eventually results in a ParseException, but during this execution it's an ErrorRecord
-    $isParseError = $err.CategoryInfo.Category -eq 'ParserError' -and
-    $err.Exception -is [System.Management.Automation.ParentContainsErrorRecordException]
+    $isParseError = $InputObject.CategoryInfo.Category -eq 'ParserError' -and
+    $InputObject.Exception -is [System.Management.Automation.ParentContainsErrorRecordException]
 
     # - check if invocation is a script or multiple lines in the console
-    $isMultiLineOrExternal = $myinv.ScriptName -or $myinv.ScriptLineNumber -gt 1
+    $Invocation = $InputObject.InvocationInfo
+    $isMultiLineOrExternal = $Invocation.ScriptName -or $Invocation.ScriptLineNumber -gt 1
 
     # - check that it's not a script module as expectation is that users don't want to see the line of error within a module
     $shouldShowLineDetail = ($isParseError -or $isMultiLineOrExternal) -and
-    $myinv.ScriptName -notmatch '\.psm1$'
+    $Invocation.ScriptName -notmatch '\.psm1$'
 
     if ($useTargetObject -or $shouldShowLineDetail) {
 
         if ($useTargetObject) {
-            $posmsg = "${resetcolor}$($err.TargetObject.File)${newline}"
-        } elseif ($myinv.ScriptName) {
+            $posmsg = "${resetcolor}$($InputObject.TargetObject.File)${newline}"
+        } elseif ($Invocation.ScriptName) {
             if ($env:TERM_PROGRAM -eq 'vscode') {
                 # If we are running in vscode, we know the file:line:col links are clickable so we use this format
-                $posmsg = "${resetcolor}$($myinv.ScriptName):$($myinv.ScriptLineNumber):$($myinv.OffsetInLine)${newline}"
+                $posmsg = "${resetcolor}$($Invocation.ScriptName):$($Invocation.ScriptLineNumber):$($Invocation.OffsetInLine)${newline}"
             } else {
-                $posmsg = "${resetcolor}$($myinv.ScriptName):$($myinv.ScriptLineNumber)${newline}"
+                $posmsg = "${resetcolor}$($Invocation.ScriptName):$($Invocation.ScriptLineNumber)${newline}"
             }
         } else {
             $posmsg = "${newline}"
         }
 
         if ($useTargetObject) {
-            $scriptLineNumber = $err.TargetObject.Line
-            $scriptLineNumberLength = $err.TargetObject.Line.ToString().Length
+            $scriptLineNumber = $InputObject.TargetObject.Line
+            $scriptLineNumberLength = $InputObject.TargetObject.Line.ToString().Length
         } else {
-            $scriptLineNumber = $myinv.ScriptLineNumber
-            $scriptLineNumberLength = $myinv.ScriptLineNumber.ToString().Length
+            $scriptLineNumber = $Invocation.ScriptLineNumber
+            $scriptLineNumberLength = $Invocation.ScriptLineNumber.ToString().Length
         }
 
         if ($scriptLineNumberLength -gt 4) {
@@ -72,7 +72,7 @@ filter GetConciseMessage {
             $offsetLength = 0
             $offsetInLine = 0
         } else {
-            $positionMessage = $myinv.PositionMessage.Split($newline)
+            $positionMessage = $Invocation.PositionMessage.Split($newline)
             $line = $positionMessage[1].Substring(1) # skip the '+' at the start
             $highlightLine = $positionMessage[$positionMessage.Count - 1].Substring(1)
             $offsetLength = $highlightLine.Trim().Length
@@ -96,23 +96,23 @@ filter GetConciseMessage {
         $message = "${prefix}"
     }
 
-    if (! $err.ErrorDetails -or ! $err.ErrorDetails.Message) {
-        if ($err.CategoryInfo.Category -eq 'ParserError' -and $err.Exception.Message.Contains("~$newline")) {
+    if (! $InputObject.ErrorDetails -or ! $InputObject.ErrorDetails.Message) {
+        if ($InputObject.CategoryInfo.Category -eq 'ParserError' -and $InputObject.Exception.Message.Contains("~$newline")) {
             # need to parse out the relevant part of the pre-rendered positionmessage
-            $message += $err.Exception.Message.split("~$newline")[1].split("${newline}${newline}")[0]
-        } elseif ($err.Exception) {
-            $message += $err.Exception.Message
-        } elseif ($err.Message) {
-            $message += $err.Message
+            $message += $InputObject.Exception.Message.split("~$newline")[1].split("${newline}${newline}")[0]
+        } elseif ($InputObject.Exception) {
+            $message += $InputObject.Exception.Message
+        } elseif ($InputObject.Message) {
+            $message += $InputObject.Message
         } else {
-            $message += $err.ToString()
+            $message += $InputObject.ToString()
         }
     } else {
-        $message += $err.ErrorDetails.Message
+        $message += $InputObject.ErrorDetails.Message
     }
 
     # if rendering line information, break up the message if it's wider than the console
-    if ($myinv -and $myinv.ScriptName -or $err.CategoryInfo.Category -eq 'ParserError') {
+    if ($Invocation -and $Invocation.ScriptName -or $InputObject.CategoryInfo.Category -eq 'ParserError') {
         $prefixLength = [System.Management.Automation.Internal.StringDecorated]::new($prefix).ContentLength
         $prefixVtLength = $prefix.Length - $prefixLength
 
@@ -152,22 +152,22 @@ filter GetConciseMessage {
     $posmsg += "${errorColor}" + $message
 
     $reason = 'Error'
-    if ($err.Exception -and $err.Exception.WasThrownFromThrowStatement) {
+    if ($InputObject.Exception -and $InputObject.Exception.WasThrownFromThrowStatement) {
         $reason = 'Exception'
         # MyCommand can be the script block, so we don't want to show that so check if it's an actual command
-    } elseif ($myinv.MyCommand -and $myinv.MyCommand.Name -and (Get-Command -Name $myinv.MyCommand -ErrorAction Ignore)) {
-        $reason = $myinv.MyCommand
-    } elseif ($err.CategoryInfo.Activity) {
+    } elseif ($Invocation.MyCommand -and $Invocation.MyCommand.Name -and (Get-Command -Name $Invocation.MyCommand -ErrorAction Ignore)) {
+        $reason = $Invocation.MyCommand
+    } elseif ($InputObject.CategoryInfo.Activity) {
         # If it's a scriptblock, better to show the command in the scriptblock that had the error
-        $reason = $err.CategoryInfo.Activity
-    } elseif ($myinv.MyCommand) {
-        $reason = $myinv.MyCommand
-    } elseif ($myinv.InvocationName) {
-        $reason = $myinv.InvocationName
-    } elseif ($err.CategoryInfo.Category) {
-        $reason = $err.CategoryInfo.Category
-    } elseif ($err.CategoryInfo.Reason) {
-        $reason = $err.CategoryInfo.Reason
+        $reason = $InputObject.CategoryInfo.Activity
+    } elseif ($Invocation.MyCommand) {
+        $reason = $Invocation.MyCommand
+    } elseif ($Invocation.InvocationName) {
+        $reason = $Invocation.InvocationName
+    } elseif ($InputObject.CategoryInfo.Category) {
+        $reason = $InputObject.CategoryInfo.Category
+    } elseif ($InputObject.CategoryInfo.Reason) {
+        $reason = $InputObject.CategoryInfo.Reason
     }
 
     "${errorColor}${reason}: ${posmsg}${resetcolor}"
