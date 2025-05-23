@@ -126,13 +126,13 @@ filter GetConciseMessage {
 
         if ($windowWidth -gt 0 -and ($message.Length - $prefixVTLength) -gt $windowWidth) {
             $sb = [Text.StringBuilder]::new()
-            $substring = TruncateString -string $message -length ($windowWidth + $prefixVTLength)
+            $substring = TruncateString -InputObject $message -length ($windowWidth + $prefixVTLength)
             $null = $sb.Append($substring)
             $remainingMessage = $message.Substring($substring.Length).Trim()
             $null = $sb.Append($newline)
             while (($remainingMessage.Length + $prefixLength) -gt $windowWidth) {
                 $subMessage = $prefix + $remainingMessage
-                $substring = TruncateString -string $subMessage -length ($windowWidth + $prefixVtLength)
+                $substring = TruncateString -InputObject $subMessage -length ($windowWidth + $prefixVtLength)
 
                 if ($substring.Length - $prefix.Length -gt 0) {
                     $null = $sb.Append($substring)
