@@ -55,7 +55,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: PesterTests
-        path: ${{github.workspace}}/Tests
+        path: ${{github.workspace}}/tests
     - name: Upload RequiredModules.psd1
       uses: actions/upload-artifact@v4
       with:

@@ -1,4 +1,4 @@
-filter Get-ErrorPrefix {
+filter GetErrorPrefix {
     [CmdletBinding()]
     param(
         [Parameter(ValueFromPipeline)]
@@ -6,7 +6,7 @@ filter Get-ErrorPrefix {
     )
     if (@('NativeCommandErrorMessage', 'NativeCommandError') -notcontains $_.FullyQualifiedErrorId) {
         if ($InputObject -is [System.Exception]) {
-            $InputObject.GetType().FullName + " : "
+            $InputObject.GetType().FullName + ' : '
         } else {
             $myinv = $InputObject.InvocationInfo
             if ($myinv -and $myinv.MyCommand) {
@@ -15,7 +15,6 @@ filter Get-ErrorPrefix {
                         if ($myinv.MyCommand.Path) {
                             $myinv.MyCommand.Path + ' : '
                         }
-
                         break
                     }
 
@@ -23,7 +22,6 @@ filter Get-ErrorPrefix {
                         if ($myinv.MyCommand.ScriptBlock) {
                             $myinv.MyCommand.ScriptBlock.ToString() + ' : '
                         }
-
                         break
                     }
                     default {
@@ -34,7 +32,6 @@ filter Get-ErrorPrefix {
                         } else {
                             $myinv.InvocationName + ' : '
                         }
-
                         break
                     }
                 }

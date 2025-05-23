@@ -163,5 +163,4 @@ function GetListRecursive {
     }
 
     $output.ToString()
-    Write-Information "EXIT GetListRecursive END $($InputObject.GetType().FullName) $indent $depth (of $maxDepth)" -Tags 'Trace', 'Enter', 'GetListRecursive'
 }
