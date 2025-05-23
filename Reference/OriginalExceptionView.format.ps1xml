@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>GetErrorInstance</Name>
+      <ViewSelectedBy>
+        <TypeName>System.Management.Automation.ErrorRecord#PSExtendedError</TypeName>
+      </ViewSelectedBy>
+      <GroupBy>
+        <PropertyName>PSErrorIndex</PropertyName>
+        <Label>ErrorIndex</Label>
+      </GroupBy>
+      <CustomControl>
+        <CustomEntries>
+          <CustomEntry>
+            <CustomItem>
+              <ExpressionBinding>
+                <ScriptBlock>
+                            Set-StrictMode -Off
+
+                            $maxDepth = 10
+                            $ellipsis = "`u{2026}"
+                            $resetColor = ''
+                            $errorColor = ''
+                            $accentColor = ''
+
+                            if ($Host.UI.SupportsVirtualTerminal -and ([string]::IsNullOrEmpty($env:__SuppressAnsiEscapeSequences))) {
+                                $resetColor = $PSStyle.Reset
+                                $errorColor = $psstyle.Formatting.Error
+                                $accentColor = $PSStyle.Formatting.FormatAccent
+                            }
+
+                            function Show-ErrorRecord($obj, [int]$indent = 0, [int]$depth = 1) {
+                                $newline = [Environment]::Newline
+                                $output = [System.Text.StringBuilder]::new()
+                                $prefix = ' ' * $indent
+
+                                $expandTypes = @(
+                                    'Microsoft.Rest.HttpRequestMessageWrapper'
+                                    'Microsoft.Rest.HttpResponseMessageWrapper'
+                                    'System.Management.Automation.InvocationInfo'
+                                )
+
+                                # if object is an Exception, add an ExceptionType property
+$

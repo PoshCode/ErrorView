@@ -6,23 +6,15 @@
       <OutOfBand />
       <ViewSelectedBy>
         <TypeName>System.Management.Automation.ErrorRecord</TypeName>
+        <TypeName>System.Exception</TypeName>
       </ViewSelectedBy>
       <CustomControl>
         <CustomEntries>
           <CustomEntry>
             <CustomItem>
               <ExpressionBinding>
-                <ScriptBlock>Write-NativeCommandError $_</ScriptBlock>
-              </ExpressionBinding>
-              <ExpressionBinding>
                 <ScriptBlock>
-                  <![CDATA[
-                    if ($formatter = @(Get-Command "ConvertTo-$($ErrorView -replace "View$")ErrorView" -ListImported -ErrorAction Ignore -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord])) {
-                      & ($formatter[0]) -InputObject $_
-                    } else {
-                      ConvertTo-NormalErrorView $_
-                    }
-                  ]]>
+                    Format-Error -View $global:ErrorView -InputObject $_
                 </ScriptBlock>
               </ExpressionBinding>
             </CustomItem>

@@ -21,13 +21,14 @@ filter Set-ErrorView {
             })]
         $View = "Normal"
     )
-    # Update the enum every time, because how often do you change the error view?
+
+    # Re-create an update the enum every time, because how often do you change the error view?
     $Names = [System.Management.Automation.ErrorView].GetEnumNames() + @(
         Get-Command ConvertTo-*ErrorView -ListImported -ParameterName InputObject -ParameterType [System.Management.Automation.ErrorRecord]
     ).Name -replace "ConvertTo-(\w+)ErrorView", '$1View' | Select-Object -Unique
 
     $ofs = ';'
-    [ScriptBlock]::Create("enum ErrorView { $Names }").Invoke()
+    . ([ScriptBlock]::Create("enum ErrorView { $Names }"))
 
     [ErrorView]$global:ErrorView = $View
 }
