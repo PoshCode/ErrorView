@@ -4,8 +4,8 @@
     Author               = 'Joel Bennett'
     CompanyName          = 'PoshCode'
 
-    ModuleToProcess      = 'ErrorView.psm1'
-    ModuleVersion        = '0.0.3'
+    RootModule           = 'ErrorView.psm1'
+    ModuleVersion        = '1.0.7'
 
     Copyright            = '(c) Joel Bennett. All rights reserved.'
 
@@ -14,6 +14,7 @@
     CmdletsToExport      = @()
     VariablesToExport    = @()
     AliasesToExport      = @("fe")
+    PowerShellVersion    = '7.5.0'
 
     PrivateData = @{
         PSData = @{
